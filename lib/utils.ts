@@ -119,3 +119,12 @@ export const numberToThousands = (num: number | string) => {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return parts.join(".");
 }
+
+export const isMobile = () => {
+  if (typeof window !== 'undefined') {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const mobileKeywords = ['mobile', 'android', 'iphone', 'ipad'];
+    return mobileKeywords.some(keyword => userAgent.includes(keyword));
+  }
+  return false;
+}

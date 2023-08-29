@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { chainConfig } from "@/config/chain"
 import { AppProvider } from "@/components/login-account-provider"
 import { useToast } from "@/components/ui/use-toast"
+import { isMobile } from "@/lib/utils";
 
 export function SiteHeader() {
   const { toast } = useToast()

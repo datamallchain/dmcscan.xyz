@@ -51,7 +51,7 @@ export const loginIronman = (sucCb: { (data: any): void; (arg0: any, arg1: any, 
         }
       })
       .catch((e: any) => {
-        // TODO
+
       })
   }
 }

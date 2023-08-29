@@ -37,7 +37,7 @@ export default function TrxInfo() {
             set_last_irreversible_block_num(data?.last_irreversible_block_num)
           }
         })
-      gqlReq('fibos_transactions').find({
+      gqlReq('dmc_transactions').find({
         where: {
           and: [
             {
@@ -73,8 +73,8 @@ export default function TrxInfo() {
       `)
         .then((res) => res.json())
         .then((data) => {
-          if (data?.data?.find_fibos_transactions?.length > 0) {
-            setTrxInfo(data?.data?.find_fibos_transactions[0])
+          if (data?.data?.find_dmc_transactions?.length > 0) {
+            setTrxInfo(data?.data?.find_dmc_transactions[0])
           } else {
             toast({
               variant: 'destructive',
@@ -93,7 +93,7 @@ export default function TrxInfo() {
 
   const getOrderData = () => {
     setLoading(true)
-    gqlReq('fibos_transactions').find({
+    gqlReq('dmc_transactions').find({
       where: {
         and: [
           {
@@ -127,8 +127,8 @@ export default function TrxInfo() {
       .then((res) => res.json())
       .then((data: any) => {
         setLoading(false)
-        if (data?.data?.find_fibos_transactions) {
-          setDataList(data?.data?.find_fibos_transactions)
+        if (data?.data?.find_dmc_transactions) {
+          setDataList(data?.data?.find_dmc_transactions)
         }
         setLoading(false)
       }).catch((error: any) => {
@@ -248,7 +248,7 @@ export default function TrxInfo() {
   }
 
   return (
-    <section>
+    <section className="xs:w-screen sm:w-auto">
       {renderResource()}
       {renderTrxInfo()}
       {renderTransactions()}

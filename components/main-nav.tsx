@@ -74,7 +74,7 @@ export function MainNav({ items }: MainNavProps) {
         value={searchText}
         type="search"
         placeholder="Input Account / Trx / Block"
-        className="h-9 md:w-[300px] lg:w-[300px]}"
+        className="h-9 xs:w-[200px] md:w-[300px] lg:w-[300px]"
         // className={`h-9 md:w-[100px] lg:w-[300px] ${searchTextFocus && 'border-0'}`}
         // onFocus={() => setSearchTextFocus(true)}
         // onBlur={() => setSearchTextFocus(false)}

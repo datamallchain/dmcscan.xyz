@@ -233,7 +233,7 @@ export default function OrderList() {
     },
   ]
   return (
-    <section>
+    <section className="xs:w-screen sm:w-auto">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div className="flex flex-row items-center justify-center">
@@ -243,7 +243,7 @@ export default function OrderList() {
             </CardTitle>
           </div>
           <Input
-            className="h-9 md:w-[300px] lg:w-[300px]}"
+            className="h-9 xs:w-[200px] md:w-[300px] lg:w-[300px]"
             value={searchText}
             type="search"
             placeholder="Input Order Id or Miner Id"

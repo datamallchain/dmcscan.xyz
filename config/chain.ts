@@ -8,7 +8,7 @@ export const chainConfig = {
     port: 443,
     protocol: 'https',
     blockchain: 'dmc',
-    searchApi: "/1.1"
+    searchApi: "/2.1"
   },
 
   // rc1
@@ -18,7 +18,7 @@ export const chainConfig = {
   //     port: 80,
   //     protocol: 'http',
   //     blockchain: 'dmc',
-  //     searchApi: "/1.1"
+  //     searchApi: "/2.1"
   // },
 
   // test
@@ -28,7 +28,7 @@ export const chainConfig = {
   //     port: 8870,
   //     protocol: 'http',
   //     blockchain: 'dmc',
-  //     searchApi: "/1.1"
+  //     searchApi: "/2.1"
   // },
 
   openAccount: false,

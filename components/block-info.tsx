@@ -74,7 +74,7 @@ export default function BlockInfo() {
 
   const getOrderData = (blockId: string, pageIndex: number) => {
     setLoading(true)
-    gqlReq('fibos_transactions').count({
+    gqlReq('dmc_transactions').count({
       where: {
         and: [
           {
@@ -93,11 +93,11 @@ export default function BlockInfo() {
     })
       .then((res) => res.json())
       .then((res) => {
-        if (res?.data?.count_fibos_transactions) {
-          setPageCount(Math.ceil(res?.data?.count_fibos_transactions / pageSize))
+        if (res?.data?.count_dmc_transactions) {
+          setPageCount(Math.ceil(res?.data?.count_dmc_transactions / pageSize))
         }
       })
-    gqlReq('fibos_transactions').find({
+    gqlReq('dmc_transactions').find({
       where: {
         and: [
           {
@@ -129,7 +129,7 @@ export default function BlockInfo() {
       .then((res) => res.json())
       .then((data: any) => {
         setLoading(false)
-        const res = data?.data?.find_fibos_transactions
+        const res = data?.data?.find_dmc_transactions
         if (res) {
           let reformList: any = [];
           res.map((item: any, index: number) => {
@@ -274,7 +274,7 @@ export default function BlockInfo() {
   }
 
   return (
-    <section>
+    <section className="xs:w-screen sm:w-auto">
       {renderResource()}
       {renderTrxList()}
     </section>

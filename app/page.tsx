@@ -4,7 +4,7 @@ import PstList from "@/components/pst-list"
 
 export default function IndexPage() {
   return (
-    <section className="container grid items-center gap-6 pb-8 pt-6 md:py-10">
+    <section className="grid items-center gap-6 pb-8 pt-6 sm:container md:py-10">
       <Overview />
       <div className="grid gap-4 lg:grid-cols-2">
         <Nodes isSummary={true} />

@@ -59,9 +59,12 @@ export default function Resources() {
   const [assetsList, setAssetsList] = useState(Array<any>)
   const [lockAssetsList, setLockAssetsList] = useState(Array<any>)
   const [dmcLockedkAmount, setDmcLockedkAmount] = useState(0)
-  const [pstLockedkAmount, setPstLockedkAmount] = useState(0)
   const [dmcStakedAmount, setDmcStakedAmount] = useState(0)
-  const [pstAmount, setPstAmount] = useState(0)
+  const [dmc_lock_pledge_amount, setDmc_lock_pledge_amount] = useState('0')
+  const [dmcStakedTotal, setDmcStakedTotal] = useState('')
+  const [pstTotal, setPstTotal] = useState(0)
+  const [pstUnderGoing, setPstUnderGoing] = useState(0)
+  const [pstUnMatched, setPstUnMatched] = useState(0)
 
   useEffect(() => {
     if (!searchParams.account && sessionStorage?.getItem('account')) {
@@ -70,11 +73,16 @@ export default function Resources() {
   }, [searchParams])
 
   useEffect(() => {
+    setDmcStakedTotal(new BigNumber(dmcStakedAmount).plus(dmc_lock_pledge_amount).toFixed(4, 1))
+  }, [dmcStakedAmount, dmc_lock_pledge_amount])
+
+  useEffect(() => {
     if (account) {
       getAssetsData()
       getPstAmount()
       getLockAssetsData()
       getOrderData()
+      get_dmc_lock_pledge_amount([], 0)
       fetch(`/v1/chain/get_account`, {
         next: { revalidate: 10 },
         method: "POST",
@@ -104,28 +112,63 @@ export default function Resources() {
   }, [account, pageIndex])
 
   const getPstAmount = () => {
-    fetch("/v1/chain/get_table_rows", {
+    fetch(`/obtainPSTHolding`, {
+      next: { revalidate: 10 },
       method: "POST",
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        code: "dmc.token",
-        json: true,
-        scope: "dmc.token",
-        table: "pststats",
-        lower_bound: reformAccount(account!),
-        upper_bound: reformAccount(account!),
       })
     })
       .then((res) => res.json())
-      .then((res) => {
-        const number =
-          res?.rows?.length !== 0
-            ? res?.rows[0]?.amount.quantity.split(" ")[0]
-            : 0;
-        setPstAmount(number)
+      .then((data) => {
+        if (data && data.list) {
+          const userData = data.list.filter((e: any) => e.account === account)
+          if (userData && userData.length > 0) {
+            setPstTotal(userData[0].total)
+            setPstUnderGoing(userData[0].underGoing)
+            setPstUnMatched(userData[0].unMatched)
+          }
+        }
       })
-      .catch((err) => {
+  }
 
-      });
+  const get_dmc_lock_pledge_amount = (lastData: any, skip: number = 0) => {
+    const limit = 500
+    gqlReq('order').find({
+      where: {
+        and: [
+          {
+            miner_id: {
+              eq: account
+            }
+          }
+        ]
+      },
+      skip,
+      limit,
+      order: "-created_time"
+    }, `
+    {
+      miner_lock_dmc_amount
+  }
+    `)
+      .then((res) => res.json())
+      .then((res: any) => {
+        console.log('res: ', res)
+        const data = lastData.concat(res?.data?.find_order)
+        if (res?.data?.find_order?.length === limit) {
+          get_dmc_lock_pledge_amount(data, skip + limit)
+        } else {
+          let miner_lock_dmc_amount = new BigNumber(0)
+          for (let i = 0; i < data.length; i++) {
+            miner_lock_dmc_amount = new BigNumber(miner_lock_dmc_amount).plus(data[i]?.miner_lock_dmc_amount)
+          }
+          setDmc_lock_pledge_amount(miner_lock_dmc_amount.toFixed(4, 1))
+        }
+      })
   }
 
   const getDmcPoolData = (makers: []) => {
@@ -249,17 +292,19 @@ export default function Resources() {
         if (data?.rows) {
           let dmcLocked = 0
           let pstLocked = 0
+          const lockedTokens: any = []
           data?.rows.forEach((row: any) => {
             if (row?.balance?.contract === 'datamall' && row?.balance?.quantity?.split(' ')[1] === 'DMC') {
               dmcLocked += Number(row?.balance?.quantity?.split(' ')[0])
             }
             if (row?.balance?.contract === 'datamall' && row?.balance?.quantity?.split(' ')[1] === 'PST') {
               pstLocked += Number(row?.balance?.quantity?.split(' ')[0])
+            } else {
+              lockedTokens.push(row)
             }
           });
           setDmcLockedkAmount(dmcLocked)
-          setPstLockedkAmount(pstLocked)
-          setLockAssetsList(data?.rows)
+          setLockAssetsList(lockedTokens)
         }
       })
       .catch((error) => {
@@ -545,27 +590,35 @@ export default function Resources() {
               return (
                 <Card key={`assets${index.toString()} `}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                    DMC : {numberToThousands(new BigNumber(e?.balance?.quantity?.split(' ')[0]).plus(dmcLockedkAmount).plus(dmcStakedAmount).toFixed(4, 1))}
+                    DMC : {numberToThousands(new BigNumber(e?.balance?.quantity?.split(' ')[0]).plus(dmcLockedkAmount).plus(dmcStakedTotal).toFixed(4, 1))}
                   </CardHeader>
                   <CardContent>
                     {/* <div>Resource Staked Amount : {isNaN(Number(stakeResource)) ? '--' : stakeResource}</div> */}
                     <div>Available Amount : {numberToThousands(e?.balance?.quantity?.split(' ')[0])}</div>
-                    <div>Staked Amount : {numberToThousands(new BigNumber(dmcStakedAmount).toFixed(4, 1))}</div>
+                    <div>Staked Amount : {numberToThousands(new BigNumber(dmcStakedTotal).toFixed(4, 1))}</div>
                     <div>Locked Amount : {numberToThousands(new BigNumber(dmcLockedkAmount).toFixed(4, 1))}</div>
                   </CardContent>
                 </Card>
               )
             }
+            // <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            //         PST : {numberToThousands(new BigNumber(e?.balance?.quantity?.split(' ')[0]).plus(pstAmount).plus(pstLockedkAmount).toFixed(0))}
+            //       </CardHeader>
+            //       <CardContent>
+            //         <div>Staked Amount : {numberToThousands(pstAmount)}</div>
+            //         {/* <div>Available Amount : {e?.balance?.quantity?.split(' ')[0]}</div> */}
+            //         <div>Locked Amount : {numberToThousands(new BigNumber(pstLockedkAmount).toFixed(0, 1))}</div>
+            //       </CardContent>
             if (e?.balance?.quantity?.split(' ')[1] === 'PST') {
               return (
                 <Card key={`assets${index.toString()} `}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                    PST : {numberToThousands(new BigNumber(e?.balance?.quantity?.split(' ')[0]).plus(pstAmount).plus(pstLockedkAmount).toFixed(0))}
+                    PST : {numberToThousands(pstTotal)}
                   </CardHeader>
                   <CardContent>
-                    <div>Staked Amount : {numberToThousands(pstAmount)}</div>
+                    <div>PST in Pending : {numberToThousands(pstUnMatched)}</div>
                     {/* <div>Available Amount : {e?.balance?.quantity?.split(' ')[0]}</div> */}
-                    <div>Locked Amount : {numberToThousands(new BigNumber(pstLockedkAmount).toFixed(0, 1))}</div>
+                    <div>PST in Trading : {numberToThousands(pstUnderGoing)}</div>
                   </CardContent>
                 </Card>
               )
@@ -752,7 +805,7 @@ export default function Resources() {
   }
 
   return (
-    <section>
+    <section className="xs:w-screen sm:w-auto">
       {renderInfo()}
       {renderResource()}
       {renderPermissions()}

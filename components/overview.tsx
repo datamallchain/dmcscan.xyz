@@ -23,9 +23,22 @@ interface ChainInfo {
   last_irreversible_block_num: number,
   last_irreversible_block_time: string,
 }
+import { Calculator } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@radix-ui/react-label";
+import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function Overview() {
   const router = useRouter()
+  const { toast } = useToast()
   const [chainInfo, setChainInfo] = useState<ChainInfo>({
     head_block_num: 0,
     head_block_time: '',
@@ -48,6 +61,11 @@ export default function Overview() {
   const [oneDayMinerReward, setOneDayMinerReward] = useState<any>(undefined)
   const [accountTotal, setAccountTotal] = useState<any>(undefined)
 
+  const [space, setSpace] = useState('')
+  const [benchmarkPrice, setBenchmarkPrice] = useState('')
+  const [pledgeRate, setPledgeRate] = useState('')
+  const [calculateNeedPledgeDmc, setCalculateNeedPledgeDmc] = useState('')
+  const [calculateRewardDmc, setCalculateRewardDmc] = useState('')
 
   let requestInterval: any
   let orderRequestInterval: any
@@ -55,30 +73,16 @@ export default function Overview() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // load cache data
-        fetch('/api/orders')
+        fetch('/data')
           .then((res) => res.json())
-          .then((totalData) => {
-            if (totalData?.data) {
-              let avgTotal = new BigNumber(0)
-              let orderLockedPstTotal = new BigNumber(0)
-              let underGoingPST = new BigNumber(0)
-              let underGoingDmc = new BigNumber(0)
-              let finishedPST = new BigNumber(0)
-              totalData?.data.forEach((item: any) => {
-                avgTotal = new BigNumber(avgTotal).plus(item?.maker_snapshot[0]?.rate)
-                orderLockedPstTotal = new BigNumber(orderLockedPstTotal).plus(item?.miner_lock_pst_amount)
-                if (item?.state !== 4 && item?.state !== 5) {
-                  underGoingPST = new BigNumber(underGoingPST).plus(item?.miner_lock_pst_amount)
-                  underGoingDmc = new BigNumber(underGoingDmc).plus(item?.miner_lock_dmc_amount)
-                } else {
-                  finishedPST = new BigNumber(finishedPST).plus(item?.miner_lock_pst_amount)
-                }
-              })
-              setOrderLockedPstTotal(orderLockedPstTotal.div(1024).toFixed())
-              setFinishedPST(finishedPST.toFixed(0, 1))
-              setUnderGoingPst(underGoingPST.toFixed(0, 1))
-              setUnderGoingDmc(underGoingDmc.toFixed(0, 1))
+          .then((cacheData: any) => {
+            console.log('order-data: ', cacheData)
+            if (cacheData && cacheData.CacheTimestamp) {
+              const { OrderLockedPstTotal, FinishedPST, UnderGoingPst, UnderGoingDmc } = cacheData
+              setOrderLockedPstTotal(OrderLockedPstTotal)
+              setFinishedPST(FinishedPST)
+              setUnderGoingPst(UnderGoingPst)
+              setUnderGoingDmc(UnderGoingDmc)
             } else {
               getOrderData(0, [])
             }
@@ -89,6 +93,22 @@ export default function Overview() {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!space || !pledgeRate) {
+      setCalculateNeedPledgeDmc('')
+      setCalculateRewardDmc('')
+    } else if (!benchmarkPrice || !transactionComputingAvg || !oneDayMinerReward) {
+      toast({
+        variant: 'default',
+        title: "Requesting relevant parameters, please wait or refresh the page and try again.",
+      })
+    } else if (transactionComputingAvg && oneDayMinerReward) {
+      setCalculateNeedPledgeDmc(new BigNumber(space).times(1000).times(pledgeRate).times(benchmarkPrice).toFixed(4, 1) || '')
+      const avage = new BigNumber(pledgeRate).div(transactionComputingAvg).times(benchmarkPrice).times(1000)
+      setCalculateRewardDmc(new BigNumber(space).times(avage).times(oneDayMinerReward).toFixed(4, 1) || '')
+    }
+  }, [space, pledgeRate, benchmarkPrice, transactionComputingAvg, oneDayMinerReward])
 
   useEffect(() => {
     if (underGoingDmc && underGoingPst) {
@@ -261,7 +281,37 @@ export default function Overview() {
       })
   }
 
+  const getBenchMarkPrice = () => {
+    fetch("/v1/chain/get_table_rows", {
+      method: "POST",
+      body: JSON.stringify({
+        code: "dmc.token",
+        json: true,
+        scope: "dmc.token",
+        table: "bcprice",
+      })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.rows.length > 0) {
+          setBenchmarkPrice(data?.rows[0]?.benchmark_price)
+        } else {
+          toast({
+            variant: 'destructive',
+            title: "Failed to retrieve average transaction price, please refresh the page and try again.",
+          })
+        }
+      })
+      .catch((error) => {
+        toast({
+          variant: 'destructive',
+          title: "Failed to retrieve average transaction price, please refresh the page and try again.",
+        })
+      })
+  }
+
   useEffect(() => {
+    getBenchMarkPrice()
     getAccount()
     // getOrderData(0, [])
     getOverView()
@@ -427,6 +477,87 @@ export default function Overview() {
     )
   }
 
+  const renderCalculate = () => {
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Calculator className="cursor-pointer" />
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mining Profit Calculator</DialogTitle>
+            <DialogDescription>
+              <Card className="mt-5 flex flex-row items-center justify-around py-2">
+                <div className="ml-2 flex w-28 flex-row items-center justify-between">
+                  <Label>Mining Rig Space</Label>
+                  <Label>:</Label>
+                </div>
+                <Input
+                  maxLength={9}
+                  className="ml-2 h-9 xs:w-[200px] md:w-[300px] lg:w-[300px]"
+                  value={space}
+                  type="search"
+                  placeholder="Mining Space"
+                  onChange={(e) => {
+                    if (e?.target?.value?.trim() && !new BigNumber(e?.target?.value?.trim()).isGreaterThan(0)) {
+                      toast({
+                        variant: 'destructive',
+                        title: "Please enter a valid mining rig capacity.",
+                      })
+                    } else {
+                      setSpace(e?.target?.value?.trim())
+                    }
+                  }}
+                />
+                <Label className="mx-2 w-8">TB</Label>
+              </Card>
+              <Card className="mt-2 flex flex-row items-center justify-around py-2">
+                <div className="ml-2 flex w-28 flex-row items-center justify-between">
+                  <Label>Pledge Rate</Label>
+                  <Label>:</Label>
+                </div>
+                <Input
+                  maxLength={9}
+                  className="ml-2 h-9 xs:w-[200px] md:w-[300px] lg:w-[300px]"
+                  value={pledgeRate}
+                  type="search"
+                  placeholder="Benchmark Stake Rate m=4"
+                  onChange={(e) => {
+                    if (e?.target?.value?.trim() && !new BigNumber(e?.target?.value?.trim()).isGreaterThan(0)) {
+                      toast({
+                        variant: 'destructive',
+                        title: "Please enter a valid collateralization rate.",
+                      })
+                    } else {
+                      setPledgeRate(e?.target?.value?.trim())
+                    }
+                  }}
+                />
+                <Label className="mx-2 w-8 opacity-0">PH</Label>
+              </Card>
+              <Card className="mt-2 flex h-12 flex-row items-center justify-around py-2">
+                <div className="ml-2 flex w-28 flex-row items-center justify-between">
+                  <Label>Required Staking DMC</Label>
+                  <Label>:</Label>
+                </div>
+                <Label className="text-center xs:w-[200px] md:w-[300px] lg:w-[300px]">{calculateNeedPledgeDmc && numberToThousands(calculateNeedPledgeDmc) || '--'}</Label>
+                <Label className="mx-2 w-8">DMC</Label>
+              </Card>
+              <Card className="mt-2 flex h-12 flex-row items-center justify-around py-2">
+                <div className="ml-2 flex w-28 flex-row items-center justify-between">
+                  <Label>Daily Estimated Earnings</Label>
+                  <Label>:</Label>
+                </div>
+                <Label className="text-center xs:w-[200px] md:w-[300px] lg:w-[300px]">{calculateRewardDmc && numberToThousands(calculateRewardDmc) || '--'}</Label>
+                <Label className="mx-2 w-8">DMC</Label>
+              </Card>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog >
+    )
+  }
+
   const renderEcosystem = () => {
     return (
       <Card className="mt-6">
@@ -437,6 +568,7 @@ export default function Overview() {
               Ecosystem
             </CardTitle>
           </div>
+          {renderCalculate()}
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
